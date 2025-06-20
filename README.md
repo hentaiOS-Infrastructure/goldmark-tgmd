@@ -3,7 +3,7 @@
 
 Fork of github.com/Mad-Pixels/goldmark-tgmd
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Go](https://img.shields.io/badge/Go-1.19-blue.svg)](https://golang.org)
+[![Go](https://img.shields.io/badge/Go-1.24.1-blue.svg)](https://golang.org)
 
 goldmark-tgmd is an extension for the goldmark Markdown parser
 that adds support for Telegram-specific Markdown features 🚀.
