@@ -1,7 +1,6 @@
 package tgmd_test
 
 import (
-	"bytes"
 	"os"
 	"strings"
 	"testing"
@@ -89,9 +88,97 @@ func TestTGMDConvert_VariousCases(t *testing.T) {
 			expected: "[goldmark](url)",
 		},
 		{
-			name:     "Blockquote",
+			name:     "Standard Blockquote",
 			input:    "> BQ",
 			expected: ">BQ",
+		},
+		{
+			name:  "Document as Quote",
+			input: "Line 1\nLine 2",
+			setupConfig: func() {
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: false})
+			},
+			cleanupConfig: func() {
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, Expandable: false})
+			},
+			expected: ">Line 1\n>Line 2",
+		},
+		{
+			name:  "Document as Expandable Quote",
+			input: "Line 1\nLine 2",
+			setupConfig: func() {
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: true})
+			},
+			cleanupConfig: func() {
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, Expandable: false})
+			},
+			expected: "**>Line 1\n>Line 2||",
+		},
+		{
+			name:  "Complex Document as Quote",
+			input: "# Title\n\n- Item 1\n- Item 2\n\nSome `code` here.",
+			setupConfig: func() {
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: false})
+			},
+			cleanupConfig: func() {
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, Expandable: false})
+			},
+			expected: ">*Title*\n>\n>  • Item 1\n>  • Item 2\n>\n>Some `code` here\\.",
+		},
+		{
+			name:  "Complex Document as Expandable Quote",
+			input: "# Title\n\n- Item 1\n- Item 2\n\nSome `code` here.",
+			setupConfig: func() {
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: true})
+			},
+			cleanupConfig: func() {
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, Expandable: false})
+			},
+			expected: "**>*Title*\n>\n>  • Item 1\n>  • Item 2\n>\n>Some `code` here\\.||",
+		},
+		{
+			name:  "Document with Existing Blockquote as Quote",
+			input: "Line 1\n\n> Nested Quote",
+			setupConfig: func() {
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: false})
+			},
+			cleanupConfig: func() {
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, Expandable: false})
+			},
+			expected: ">Line 1\n>\n>>Nested Quote",
+		},
+		{
+			name:  "Empty Input with Quoting Enabled",
+			input: "",
+			setupConfig: func() {
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: true})
+			},
+			cleanupConfig: func() {
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, Expandable: false})
+			},
+			expected: "",
+		},
+		{
+			name:  "Whitespace Input with Quoting Enabled",
+			input: "   \n\t\n ",
+			setupConfig: func() {
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: true})
+			},
+			cleanupConfig: func() {
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, Expandable: false})
+			},
+			expected: "**>   \n>\t\n> ||",
+		},
+		{
+			name:  "Quote Enabled but Expandable Disabled with Marker",
+			input: "Hello\n**",
+			setupConfig: func() {
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: false})
+			},
+			cleanupConfig: func() {
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, Expandable: false})
+			},
+			expected: ">Hello\n>\\*\\*",
 		},
 		{
 			name:     "Fenced Code Block (as first element)",
@@ -132,16 +219,19 @@ func TestTGMDConvert_VariousCases(t *testing.T) {
 				defer tc.cleanupConfig()
 			}
 
-			md := tgmd.TGMD()
-			var buf bytes.Buffer
-			if err := md.Convert([]byte(tc.input), &buf); err != nil {
+			got, err := tgmd.Convert([]byte(tc.input))
+			if err != nil {
 				t.Fatalf("Convert failed: %v", err)
 			}
-			got := buf.String()
 
 			// Use strict comparison for newlines
-			if got != tc.expected {
-				t.Errorf("Output mismatch:\nInput:    %q\nExpected: %q\nGot:      %q", tc.input, tc.expected, got)
+			if string(got) != tc.expected {
+				t.Errorf(
+					"Output mismatch:\nInput:    %q\nExpected: %q\nGot:      %q",
+					tc.input,
+					tc.expected,
+					string(got),
+				)
 			}
 		})
 	}

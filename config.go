@@ -34,11 +34,25 @@ var Config = &config{
 		SquareSymbol.Rune(),
 		TriangleSymbol.Rune(),
 	},
+	Quote: QuoteConfig{
+		Enable:     false,
+		Expandable: false,
+	},
 }
 
 type config struct {
 	headings    [6]Element
 	listBullets [3]rune
+	// Quote holds configuration for the document quoting feature.
+	Quote QuoteConfig
+}
+
+// QuoteConfig holds configuration for the document quoting feature.
+type QuoteConfig struct {
+	// Enable determines whether the document quoting feature is enabled.
+	Enable bool
+	// Expandable determines whether the expandable quote feature is enabled.
+	Expandable bool
 }
 
 // UpdateHeading1 change default H1 style.
@@ -84,6 +98,11 @@ func (c *config) UpdateSecondaryListBullet(r rune) {
 // UpdateAdditionalListBullet change default primary bullet.
 func (c *config) UpdateAdditionalListBullet(r rune) {
 	c.listBullets[2] = r
+}
+
+// SetQuoteOptions sets the configuration for the document quoting feature.
+func (c *config) SetQuoteOptions(q QuoteConfig) {
+	c.Quote = q
 }
 
 // Element styles object.

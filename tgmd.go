@@ -11,6 +11,56 @@ import (
 	"github.com/yuin/goldmark/util"
 )
 
+// Convert is a custom function that wraps the standard Goldmark conversion.
+// It allows for post-processing to quote the entire document.
+func Convert(source []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	md := TGMD()
+	if err := md.Convert(source, &buf); err != nil {
+		return nil, err
+	}
+
+	if !Config.Quote.Enable {
+		return buf.Bytes(), nil
+	}
+
+	contentToProcess := buf.Bytes()
+	// If goldmark rendered nothing, but the source is not empty,
+	// it's likely whitespace. Use the source directly.
+	if buf.Len() == 0 && len(source) > 0 {
+		contentToProcess = source
+	}
+
+	// Trim trailing newlines, but preserve whitespace content
+	processedBuf := bytes.TrimRight(contentToProcess, "\n")
+
+	// If the result is effectively empty, return nothing.
+	if len(processedBuf) == 0 {
+		return []byte{}, nil
+	}
+
+	// Post-processing for QuoteDocument
+	var result bytes.Buffer
+	if Config.Quote.Expandable {
+		result.Write([]byte{'*', '*'})
+	}
+
+	lines := bytes.Split(processedBuf, []byte{'\n'})
+	for i, line := range lines {
+		result.WriteByte(GreaterThanChar.Byte())
+		result.Write(line)
+		if i < len(lines)-1 {
+			result.WriteByte(NewLineChar.Byte())
+		}
+	}
+
+	if Config.Quote.Expandable {
+		result.Write([]byte{'|', '|'})
+	}
+
+	return result.Bytes(), nil
+}
+
 // TGMD (telegramMarkdown) endpoint.
 func TGMD() goldmark.Markdown {
 	return goldmark.New(
@@ -280,13 +330,10 @@ func (r *Renderer) link(w util.BufWriter, _ []byte, node ast.Node, entering bool
 	return ast.WalkContinue, nil
 }
 
-func (r *Renderer) blockquote(w util.BufWriter, _ []byte, actualNode ast.Node, entering bool) (
-	ast.WalkStatus, error,
-) {
+func (r *Renderer) blockquote(w util.BufWriter, _ []byte, n ast.Node, entering bool) (ast.WalkStatus, error) {
 	if entering {
-		writeBlockSeparationNewLines(w, actualNode)
-		writeRowBytes(w, []byte{GreaterThanChar.Byte()}) // Write '>'
-		// Do NOT write a newline after '>'. Content (paragraph) will flow immediately.
+		writeBlockSeparationNewLines(w, n)
+		writeRowBytes(w, []byte{GreaterThanChar.Byte()})
 	}
 	return ast.WalkContinue, nil
 }
