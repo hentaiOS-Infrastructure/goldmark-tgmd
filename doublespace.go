@@ -45,7 +45,7 @@ func (s *doubleSpaceParser) Trigger() []byte {
 	return []byte{SpaceChar.Byte()}
 }
 
-func (s *doubleSpaceParser) Parse(_ gast.Node, block text.Reader, pc parser.Context) gast.Node {
+func (s *doubleSpaceParser) Parse(_ gast.Node, block text.Reader, _ parser.Context) gast.Node {
 	line, _ := block.PeekLine()
 	c := line[0]
 	if len(line) > 1 {

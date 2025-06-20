@@ -16,6 +16,11 @@ type HiddenAST struct {
 	ast.BaseInline
 }
 
+// NewHidden initialize HiddenAST object.
+func NewHidden() *HiddenAST {
+	return &HiddenAST{}
+}
+
 // Dump implements Node.Dump.
 func (n *HiddenAST) Dump(source []byte, level int) {
 	ast.DumpHelper(n, source, level, nil, nil)
@@ -24,11 +29,6 @@ func (n *HiddenAST) Dump(source []byte, level int) {
 // Kind implements Node.Kind.
 func (n *HiddenAST) Kind() ast.NodeKind {
 	return KindHidden
-}
-
-// NewHidden initialize HiddenAST object.
-func NewHidden() *HiddenAST {
-	return &HiddenAST{}
 }
 
 type hiddenDelimiterProcessor struct{}

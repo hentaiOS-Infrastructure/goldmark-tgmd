@@ -1,7 +1,6 @@
 package tgmd
 
 import (
-	"reflect"
 	"unsafe"
 )
 
@@ -23,7 +22,7 @@ func (sc SpecialChar) Byte() byte {
 
 func (sc SpecialChar) Bytes(num int) []byte {
 	bytes := make([]byte, num)
-	for i := 0; i < num; i++ {
+	for i := range num {
 		bytes[i] = byte(sc) // Correctly assign the character to the slice elements
 	}
 	return bytes
@@ -39,10 +38,7 @@ type SpecialTag []SpecialChar
 
 // Bytes from SpecialTags.
 func (st SpecialTag) Bytes() []byte {
-	header := *(*reflect.SliceHeader)(unsafe.Pointer(&st))
-	header.Len *= int(unsafe.Sizeof(SpecialChar(0)))
-	header.Cap *= int(unsafe.Sizeof(SpecialChar(0)))
-	return *(*[]byte)(unsafe.Pointer(&header))
+	return unsafe.Slice((*byte)(unsafe.SliceData(st)), len(st))
 }
 
 // define characters.

@@ -1,5 +1,5 @@
 module github.com/Mad-Pixels/goldmark-tgmd
 
-go 1.19
+go 1.24.4
 
-require github.com/yuin/goldmark v1.6.0
+require github.com/yuin/goldmark v1.7.12

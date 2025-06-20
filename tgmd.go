@@ -135,15 +135,7 @@ func (r *Renderer) paragraph(w util.BufWriter, source []byte, node ast.Node, ent
 				writeNewLine(w)
 			}
 		} else {
-			// Rules for top-level paragraphs (or paragraphs in other unhandled containers)
-			isTrueSingleLineDoc := (n.OwnerDocument() != nil &&
-				n.OwnerDocument().ChildCount() == 1 &&
-				parentKind == ast.KindDocument &&
-				!isEffectivelyEmpty(n))
-
-			if isTrueSingleLineDoc {
-				// No leading newlines for true single-line, non-empty paragraph documents.
-			} else if !isFirstVisibleBlock(n) { // Not the first visible block in the document
+			if !isFirstVisibleBlock(n) { // Not the first visible block in the document
 				if n.HasBlankPreviousLines() { // Preceded by blank line(s) in source
 					writeNewLine(w)
 					writeNewLine(w)
@@ -214,7 +206,7 @@ func (r *Renderer) code(w util.BufWriter, source []byte, node ast.Node, entering
 	})
 	var content []byte
 	l := n.Lines().Len()
-	for i := 0; i < l; i++ {
+	for i := range l {
 		line := n.Lines().At(i)
 		content = append(content, line.Value(source)...)
 	}
