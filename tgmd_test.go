@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	tgmd "github.com/Mad-Pixels/goldmark-tgmd"
+	tgmd "github.com/hentaiOS-Infrastructure/goldmark-tgmd"
 )
 
 func TestTGMDConvert_VariousCases(t *testing.T) {

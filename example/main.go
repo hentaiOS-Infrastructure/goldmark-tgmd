@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	tgmd "github.com/Mad-Pixels/goldmark-tgmd"
+	tgmd "github.com/hentaiOS-Infrastructure/goldmark-tgmd"
 )
 
 func main() {

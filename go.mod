@@ -1,4 +1,4 @@
-module github.com/Mad-Pixels/goldmark-tgmd
+module github.com/hentaiOS-Infrastructure/goldmark-tgmd
 
 go 1.24.4
 
