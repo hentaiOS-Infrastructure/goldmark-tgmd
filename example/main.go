@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 
 	tgmd "github.com/hentaiOS-Infrastructure/goldmark-tgmd"
+	"github.com/yuin/goldmark"
 )
 
 func main() {
@@ -16,17 +18,15 @@ func main() {
 
 	// --- Standard Conversion ---
 	fmt.Println("--- Standard Conversion ---")
-	// Ensure quoting is disabled for standard conversion
-	tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, Expandable: false})
-	// Customize other configs for this run
-	tgmd.Config.UpdatePrimaryListBullet('◦')
-	tgmd.Config.UpdateHeading1(tgmd.Element{
-		Style:   tgmd.BoldTg,
-		Prefix:  "!!!",
-		Postfix: "!!!",
-	})
-
-	standardOutput, err := tgmd.Convert(content)
+	standardOutput, err := tgmd.Convert(content,
+		tgmd.WithQuote(tgmd.QuoteConfig{Enable: false, Expandable: false}),
+		tgmd.WithPrimaryListBullet('◦'),
+		tgmd.WithHeading1(tgmd.Element{
+			Style:   tgmd.BoldTg,
+			Prefix:  "!!!",
+			Postfix: "!!!",
+		}),
+	)
 	if err != nil {
 		fmt.Println("Standard conversion failed:", err)
 		return
@@ -35,10 +35,9 @@ func main() {
 
 	// --- Document Quoted Conversion ---
 	fmt.Println("\n--- Document Quoted Conversion ---")
-	// Enable the document quoting feature
-	tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: false})
-
-	quotedOutput, err := tgmd.Convert(content)
+	quotedOutput, err := tgmd.Convert(content,
+		tgmd.WithQuote(tgmd.QuoteConfig{Enable: true, Expandable: false}),
+	)
 	if err != nil {
 		fmt.Println("Quoted conversion failed:", err)
 		return
@@ -47,13 +46,32 @@ func main() {
 
 	// --- Expandable Document Quoted Conversion ---
 	fmt.Println("\n--- Expandable Document Quoted Conversion ---")
-	// Enable the expandable document quoting feature
-	tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: true})
-
-	expandableOutput, err := tgmd.Convert(content)
+	expandableOutput, err := tgmd.Convert(content,
+		tgmd.WithQuote(tgmd.QuoteConfig{Enable: true, Expandable: true}),
+	)
 	if err != nil {
 		fmt.Println("Expandable quoted conversion failed:", err)
 		return
 	}
 	fmt.Println(string(expandableOutput))
+
+	// --- Advanced Usage with custom goldmark instance ---
+	fmt.Println("\n--- Advanced Usage ---")
+	md := goldmark.New(
+		goldmark.WithRenderer(
+			tgmd.NewRenderer(
+				tgmd.WithHeading1(tgmd.Element{Style: tgmd.ItalicsTg}),
+			),
+		),
+		goldmark.WithExtensions(
+			tgmd.Strikethroughs,
+			tgmd.Hidden,
+		),
+	)
+	var buf bytes.Buffer
+	if err := md.Convert(content, &buf); err != nil {
+		fmt.Println("Advanced usage failed:", err)
+		return
+	}
+	fmt.Println(buf.String())
 }

@@ -119,3 +119,76 @@ func (e Element) writeStart(w util.BufWriter) {
 func (e Element) writeEnd(w util.BufWriter) {
 	writeSpecialTagEnd(w, e.Style, StringToBytes(e.Postfix))
 }
+
+// An Option configures a Renderer.
+type Option func(*config)
+
+// WithQuote sets the quote options.
+func WithQuote(q QuoteConfig) Option {
+	return func(c *config) {
+		c.SetQuoteOptions(q)
+	}
+}
+
+// WithHeading1 sets the H1 style.
+func WithHeading1(e Element) Option {
+	return func(c *config) {
+		c.UpdateHeading1(e)
+	}
+}
+
+// WithHeading2 sets the H2 style.
+func WithHeading2(e Element) Option {
+	return func(c *config) {
+		c.UpdateHeading2(e)
+	}
+}
+
+// WithHeading3 sets the H3 style.
+func WithHeading3(e Element) Option {
+	return func(c *config) {
+		c.UpdateHeading3(e)
+	}
+}
+
+// WithHeading4 sets the H4 style.
+func WithHeading4(e Element) Option {
+	return func(c *config) {
+		c.UpdateHeading4(e)
+	}
+}
+
+// WithHeading5 sets the H5 style.
+func WithHeading5(e Element) Option {
+	return func(c *config) {
+		c.UpdateHeading5(e)
+	}
+}
+
+// WithHeading6 sets the H6 style.
+func WithHeading6(e Element) Option {
+	return func(c *config) {
+		c.UpdateHeading6(e)
+	}
+}
+
+// WithPrimaryListBullet sets the primary list bullet.
+func WithPrimaryListBullet(r rune) Option {
+	return func(c *config) {
+		c.UpdatePrimaryListBullet(r)
+	}
+}
+
+// WithSecondaryListBullet sets the secondary list bullet.
+func WithSecondaryListBullet(r rune) Option {
+	return func(c *config) {
+		c.UpdateSecondaryListBullet(r)
+	}
+}
+
+// WithAdditionalListBullet sets the additional list bullet.
+func WithAdditionalListBullet(r rune) Option {
+	return func(c *config) {
+		c.UpdateAdditionalListBullet(r)
+	}
+}

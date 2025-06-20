@@ -13,14 +13,19 @@ import (
 
 // Convert is a custom function that wraps the standard Goldmark conversion.
 // It allows for post-processing to quote the entire document.
-func Convert(source []byte) ([]byte, error) {
+func Convert(source []byte, opts ...Option) ([]byte, error) {
 	var buf bytes.Buffer
-	md := TGMD()
+	md := TGMD(opts...)
 	if err := md.Convert(source, &buf); err != nil {
 		return nil, err
 	}
 
-	if !Config.Quote.Enable {
+	cfg := *Config
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	if !cfg.Quote.Enable {
 		return buf.Bytes(), nil
 	}
 
@@ -41,7 +46,7 @@ func Convert(source []byte) ([]byte, error) {
 
 	// Post-processing for QuoteDocument
 	var result bytes.Buffer
-	if Config.Quote.Expandable {
+	if cfg.Quote.Expandable {
 		result.Write([]byte{'*', '*'})
 	}
 
@@ -54,32 +59,46 @@ func Convert(source []byte) ([]byte, error) {
 		}
 	}
 
-	if Config.Quote.Expandable {
+	if cfg.Quote.Expandable {
 		result.Write([]byte{'|', '|'})
 	}
 
 	return result.Bytes(), nil
 }
 
-// TGMD (telegramMarkdown) endpoint.
-func TGMD() goldmark.Markdown {
-	return goldmark.New(
-		goldmark.WithRenderer(
-			renderer.NewRenderer(
-				renderer.WithNodeRenderers(util.Prioritized(NewRenderer(), 1000)),
-			),
+// NewRenderer returns a new renderer.Renderer that renders Telegram Markdown.
+func NewRenderer(opts ...Option) renderer.Renderer {
+	cfg := *Config
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	return renderer.NewRenderer(
+		renderer.WithNodeRenderers(
+			util.Prioritized(newTgmdNodeRenderer(&cfg), 1000),
 		),
-		goldmark.WithExtensions(Strikethroughs),
-		goldmark.WithExtensions(Hidden),
+	)
+}
+
+// TGMD returns a new Goldmark instance with the Telegram Markdown extension.
+func TGMD(opts ...Option) goldmark.Markdown {
+	return goldmark.New(
+		goldmark.WithRenderer(NewRenderer(opts...)),
+		goldmark.WithExtensions(
+			Strikethroughs,
+			Hidden,
+			DoubleSpace,
+		),
 	)
 }
 
 // Renderer implement renderer.NodeRenderer object.
-type Renderer struct{}
+type Renderer struct {
+	config *config
+}
 
-// NewRenderer initialize Renderer as renderer.NodeRenderer.
-func NewRenderer() renderer.NodeRenderer {
-	return &Renderer{}
+// newTgmdNodeRenderer initialize Renderer as renderer.NodeRenderer.
+func newTgmdNodeRenderer(config *config) renderer.NodeRenderer {
+	return &Renderer{config: config}
 }
 
 // RegisterFuncs add AST objects to Renderer.
@@ -155,9 +174,9 @@ func (r *Renderer) heading(w util.BufWriter, _ []byte, node ast.Node, entering b
 	n := node.(*ast.Heading)
 	if entering {
 		writeBlockSeparationNewLines(w, n)
-		Config.headings[n.Level-1].writeStart(w)
+		r.config.headings[n.Level-1].writeStart(w)
 	} else {
-		Config.headings[n.Level-1].writeEnd(w)
+		r.config.headings[n.Level-1].writeEnd(w)
 	}
 	return ast.WalkContinue, nil
 }
@@ -235,14 +254,14 @@ func (r *Renderer) listItem(w util.BufWriter, source []byte, node ast.Node, ente
 		}
 
 		bulletIndex := listLevel
-		if bulletIndex >= len(Config.listBullets) {
-			bulletIndex = len(Config.listBullets) - 1
+		if bulletIndex >= len(r.config.listBullets) {
+			bulletIndex = len(r.config.listBullets) - 1
 		}
 
 		indentation := (listLevel * 2) + 2
 
 		writeRowBytes(w, SpaceChar.Bytes(indentation))
-		writeRune(w, Config.listBullets[bulletIndex])
+		writeRune(w, r.config.listBullets[bulletIndex])
 		writeRowBytes(w, SpaceChar.Bytes(1)) // Single space after bullet
 	}
 	return ast.WalkContinue, nil

@@ -34,7 +34,11 @@ go get github.com/hentaiOS-Infrastructure/goldmark-tgmd
 
 ### Usage 🛠️
 
-The library provides a convenient `Convert` function that handles all rendering.
+The library can be used in two ways: via the simple `Convert` function for quick conversions, or by integrating it as an extension into a `goldmark` instance for more control.
+
+#### Simple Usage
+
+The `Convert` function handles all the rendering and accepts configuration options.
 
 ```go
 package main
@@ -49,15 +53,68 @@ import (
 func main() {
    content, _ := os.ReadFile("./example/source.md")
 
-   // Standard conversion
-   output, _ := tgmd.Convert(content)
+   // Standard conversion with custom options
+   output, _ := tgmd.Convert(content,
+       tgmd.WithHeading1(tgmd.Element{Style: tgmd.BoldTg}),
+       tgmd.WithPrimaryListBullet('-'),
+   )
    fmt.Println(string(output))
 }
 ```
 
+#### Advanced Usage (with goldmark)
+
+For more complex scenarios, you can use `tgmd` as a `goldmark` extension. This allows you to combine it with other extensions and have full control over the `goldmark` instance.
+
+```go
+package main
+
+import (
+    "bytes"
+    "fmt"
+    "os"
+
+    "github.com/yuin/goldmark"
+    tgmd "github.com/hentaiOS-Infrastructure/goldmark-tgmd"
+)
+
+func main() {
+    content, _ := os.ReadFile("./example/source.md")
+
+    // Create a new goldmark instance with the tgmd renderer
+    md := goldmark.New(
+        goldmark.WithRenderer(
+            tgmd.NewRenderer(
+                tgmd.WithQuote(tgmd.QuoteConfig{Enable: true, Expandable: true}),
+                tgmd.WithHeading1(tgmd.Element{Style: tgmd.ItalicsTg}),
+            ),
+        ),
+        goldmark.WithExtensions(
+            tgmd.Strikethroughs,
+            tgmd.Hidden,
+        ),
+    )
+
+    var buf bytes.Buffer
+    if err := md.Convert(content, &buf); err != nil {
+        panic(err)
+    }
+
+    fmt.Println(buf.String())
+}
+```
+
+### Configuration
+
+Configuration is done via `Option` functions passed to `tgmd.Convert` or `tgmd.NewRenderer`.
+
+- `WithQuote(QuoteConfig)`: Configures document quoting.
+- `WithHeading1(Element)` to `WithHeading6(Element)`: Configures heading styles.
+- `WithPrimaryListBullet(rune)`, `WithSecondaryListBullet(rune)`, `WithAdditionalListBullet(rune)`: Configures list bullet styles.
+
 ### Document Quoting
 
-To format the entire document as a blockquote, you can enable the feature through the global `Config`. This is useful for creating self-contained, quoted messages.
+To format the entire document as a blockquote, use the `WithQuote` option. This is useful for creating self-contained, quoted messages.
 
 The feature is controlled by two flags in `tgmd.QuoteConfig`:
 
@@ -66,7 +123,7 @@ The feature is controlled by two flags in `tgmd.QuoteConfig`:
 
 #### Example Usage
 
-Here is how to use the `SetQuoteOptions` function to configure the quoting behavior:
+Here is how to use the `WithQuote` option to configure the quoting behavior:
 
 ```go
 package main
@@ -81,19 +138,20 @@ import (
 func main() {
    content, _ := os.ReadFile("./example/source.md")
 
-   // 1. Standard Conversion (quoting disabled)
-   tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{ Enable: false })
+   // 1. Standard Conversion (quoting disabled by default)
    standardOutput, _ := tgmd.Convert(content)
    fmt.Println("--- Standard ---\n", string(standardOutput))
 
    // 2. Blockquote Conversion
-   tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{ Enable: true, Expandable: false })
-   quotedOutput, _ := tgmd.Convert(content)
+   quotedOutput, _ := tgmd.Convert(content,
+       tgmd.WithQuote(tgmd.QuoteConfig{Enable: true, Expandable: false}),
+   )
    fmt.Println("\n--- Quoted ---\n", string(quotedOutput))
 
    // 3. Expandable Blockquote Conversion
-   tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{ Enable: true, Expandable: true })
-   expandableOutput, _ := tgmd.Convert(content)
+   expandableOutput, _ := tgmd.Convert(content,
+       tgmd.WithQuote(tgmd.QuoteConfig{Enable: true, Expandable: true}),
+   )
    fmt.Println("\n--- Expandable Quoted ---\n", string(expandableOutput))
 }
 ```
@@ -101,7 +159,7 @@ func main() {
 - When `Enable` is `true` and `Expandable` is `false`, the entire output is converted into a standard blockquote.
 - When both `Enable` and `Expandable` are `true`, the output is converted into an expandable blockquote, wrapped with `**` and `||`.
 
-You can try the full [example](./example) to see this in action.
+You can try the full [example](./example/main.go) to see this in action.
 
 ## Contributing
 
