@@ -2,6 +2,7 @@ package tgmd
 
 import (
 	"bytes"
+
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	ext "github.com/yuin/goldmark/extension/ast"
@@ -20,7 +21,6 @@ func TGMD() goldmark.Markdown {
 		),
 		goldmark.WithExtensions(Strikethroughs),
 		goldmark.WithExtensions(Hidden),
-		goldmark.WithExtensions(DoubleSpace),
 	)
 }
 
@@ -42,7 +42,7 @@ func (r *Renderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 	reg.Register(ast.KindEmphasis, r.emphasis)
 
 	reg.Register(ast.KindHeading, r.heading)
-	reg.Register(ast.KindList, r.list)
+	reg.Register(ast.KindList, r.renderList) // Changed r.list to r.renderList
 	reg.Register(ast.KindListItem, r.listItem)
 	reg.Register(ast.KindLink, r.link)
 
@@ -55,14 +55,56 @@ func (r *Renderer) RegisterFuncs(reg renderer.NodeRendererFuncRegisterer) {
 	reg.Register(KindDoubleSpace, r.doubleSpace)
 }
 
+// isEffectivelyEmpty checks if a node is an empty paragraph.
+func isEffectivelyEmpty(node ast.Node) bool {
+	if node == nil {
+		return true // Or false, depending on how nil should be treated. For "first child", nil means no first child.
+	}
+	if p, ok := node.(*ast.Paragraph); ok && p.ChildCount() == 0 {
+		return true
+	}
+	return false
+}
+
+// isFirstVisibleBlock checks if the given node is the first block-level element
+// in the document that would produce visible output. It skips over an initial
+// empty paragraph (often from a BOM).
+func isFirstVisibleBlock(node ast.Node) bool {
+	if node == nil || node.Parent() == nil || node.Parent().Kind() != ast.KindDocument {
+		return false // Not a direct child of the document
+	}
+	if node.PreviousSibling() == nil { // It's the first child
+		return !isEffectivelyEmpty(node) // True if it's not an empty paragraph itself
+	}
+	// It's not the first child, check if the actual first child was an empty paragraph
+	// and this node is the second child.
+	if isEffectivelyEmpty(node.PreviousSibling()) && node.PreviousSibling().PreviousSibling() == nil {
+		return !isEffectivelyEmpty(node) // True if this node (the second child) is not empty
+	}
+	return false
+}
+
+// writeBlockSeparationNewLines handles the newline logic for block elements.
+func writeBlockSeparationNewLines(w util.BufWriter, n ast.Node) {
+	if isFirstVisibleBlock(n) {
+		// No leading newlines for the very first visible block
+		return
+	}
+	if n.HasBlankPreviousLines() {
+		writeNewLine(w)
+		writeNewLine(w)
+	} else if n.PreviousSibling() != nil && !isEffectivelyEmpty(n.PreviousSibling()) {
+		// Single newline if immediately follows another non-empty block
+		writeNewLine(w)
+	}
+}
+
 func (r *Renderer) heading(w util.BufWriter, _ []byte, node ast.Node, entering bool) (
 	ast.WalkStatus, error,
 ) {
 	n := node.(*ast.Heading)
 	if entering {
-		if n.Level > 1 && n.Level < 4 {
-			writeNewLine(w)
-		}
+		writeBlockSeparationNewLines(w, n)
 		Config.headings[n.Level-1].writeStart(w)
 	} else {
 		Config.headings[n.Level-1].writeEnd(w)
@@ -70,53 +112,96 @@ func (r *Renderer) heading(w util.BufWriter, _ []byte, node ast.Node, entering b
 	return ast.WalkContinue, nil
 }
 
-func (r *Renderer) paragraph(w util.BufWriter, _ []byte, node ast.Node, entering bool) (
+func (r *Renderer) paragraph(w util.BufWriter, source []byte, node ast.Node, entering bool) (
 	ast.WalkStatus, error,
 ) {
 	n := node.(*ast.Paragraph)
 	if entering {
-		if n.Parent().Kind().String() != ast.KindBlockquote.String() {
-			writeNewLine(w)
+		// Rule 0: Skip empty first paragraph in document (BOM handling)
+		if n.PreviousSibling() == nil && n.Parent().Kind() == ast.KindDocument && isEffectivelyEmpty(n) {
+			return ast.WalkContinue, nil
 		}
-	} else {
-		writeNewLine(w)
+
+		parentKind := n.Parent().Kind()
+
+		if parentKind == ast.KindListItem || parentKind == ast.KindBlockquote {
+			// Paragraphs inside ListItems or Blockquotes:
+			// Only add \n\n if the paragraph itself has HBL (blank line *within* the container).
+			// Otherwise, no leading newlines from the paragraph itself. Content flows after bullet/>.
+			// Only add \n\n if the paragraph has HBL AND it's not the first child of its container.
+			// (n.PreviousSibling() == nil implies it's the first child paragraph within the container)
+			if n.HasBlankPreviousLines() && n.PreviousSibling() != nil {
+				writeNewLine(w)
+				writeNewLine(w)
+			}
+		} else {
+			// Rules for top-level paragraphs (or paragraphs in other unhandled containers)
+			isTrueSingleLineDoc := (n.OwnerDocument() != nil &&
+				n.OwnerDocument().ChildCount() == 1 &&
+				parentKind == ast.KindDocument &&
+				!isEffectivelyEmpty(n))
+
+			if isTrueSingleLineDoc {
+				// No leading newlines for true single-line, non-empty paragraph documents.
+			} else if !isFirstVisibleBlock(n) { // Not the first visible block in the document
+				if n.HasBlankPreviousLines() { // Preceded by blank line(s) in source
+					writeNewLine(w)
+					writeNewLine(w)
+				} else if n.PreviousSibling() != nil && !isEffectivelyEmpty(n.PreviousSibling()) { // Immediately follows another non-empty block
+					writeNewLine(w)
+				}
+			}
+		}
 	}
 	return ast.WalkContinue, nil
 }
 
-func (r *Renderer) list(w util.BufWriter, _ []byte, node ast.Node, entering bool) (
+// renderList handles the ast.KindList node.
+// It's responsible for the newlines *before* the entire list block.
+func (r *Renderer) renderList(w util.BufWriter, source []byte, node ast.Node, entering bool) (
 	ast.WalkStatus, error,
 ) {
-	n := node.(*ast.List)
-	if !entering {
-		if n.Parent().Kind().String() == ast.KindDocument.String() {
-			writeNewLine(w)
-		}
+	if entering {
+		n := node.(*ast.List)
+		writeBlockSeparationNewLines(w, n)
 	}
 	return ast.WalkContinue, nil
 }
 
-func (r *Renderer) listItem(w util.BufWriter, _ []byte, node ast.Node, entering bool) (
+func (r *Renderer) listItem(w util.BufWriter, source []byte, node ast.Node, entering bool) (
 	ast.WalkStatus, error,
 ) {
 	n := node.(*ast.ListItem)
 	if entering {
-		writeNewLine(w)
-		if n.Parent().Parent().Kind().String() == ast.KindDocument.String() {
-			writeRowBytes(w, []byte{SpaceChar.Byte(), SpaceChar.Byte()})
-			writeRune(w, Config.listBullets[0])
-		} else {
-			if n.Parent().Parent().Parent().Parent() != nil {
-				if n.Parent().Parent().Parent().Parent().Kind().String() == ast.KindListItem.String() {
-					writeRowBytes(w, []byte{SpaceChar.Byte(), SpaceChar.Byte(), SpaceChar.Byte(), SpaceChar.Byte(), SpaceChar.Byte(), SpaceChar.Byte()})
-					writeRune(w, Config.listBullets[2])
-				} else {
-					writeRowBytes(w, []byte{SpaceChar.Byte(), SpaceChar.Byte(), SpaceChar.Byte(), SpaceChar.Byte()})
-					writeRune(w, Config.listBullets[1])
-				}
+		// Newline separation from previous item
+		if n.PreviousSibling() != nil { // If not the first list item in this list
+			if n.HasBlankPreviousLines() { // If blank lines were present in source between items
+				writeNewLine(w)
+				writeNewLine(w)
+			} else {
+				writeNewLine(w) // Default single newline between items
 			}
 		}
-		writeRowBytes(w, []byte{SpaceChar.Byte()})
+		// Else (it's the first list item), newlines before the whole list are handled by renderList's writeBlockSeparationNewLines
+
+		// Indentation and bullet logic
+		listLevel := -1
+		for p := n.Parent(); p != nil; p = p.Parent() {
+			if p.Kind() == ast.KindList {
+				listLevel++
+			}
+		}
+
+		bulletIndex := listLevel
+		if bulletIndex >= len(Config.listBullets) {
+			bulletIndex = len(Config.listBullets) - 1
+		}
+
+		indentation := (listLevel * 2) + 2
+
+		writeRowBytes(w, SpaceChar.Bytes(indentation))
+		writeRune(w, Config.listBullets[bulletIndex])
+		writeRowBytes(w, SpaceChar.Bytes(1)) // Single space after bullet
 	}
 	return ast.WalkContinue, nil
 }
@@ -140,14 +225,13 @@ func (r *Renderer) code(w util.BufWriter, source []byte, node ast.Node, entering
 	)
 	nn := node.(*ast.FencedCodeBlock)
 	if entering {
-		writeNewLine(w)
+		writeBlockSeparationNewLines(w, nn)
 		writeWrapperArr(w.Write(CodeTg.Bytes()))
 		writeWrapperArr(w.Write(nn.Language(source)))
-	} else {
 		writeNewLine(w)
+	} else {
 		writeWrapperArr(w.Write(content))
 		writeWrapperArr(w.Write(CodeTg.Bytes()))
-		writeNewLine(w)
 	}
 	return ast.WalkContinue, nil
 }
@@ -159,11 +243,10 @@ func (r *Renderer) renderText(w util.BufWriter, source []byte, node ast.Node, en
 		return ast.WalkContinue, nil
 	}
 	n := node.(*ast.Text)
-	text := n.Segment.Value(source)
-	if n.HardLineBreak() {
-		text = append(text, "\n"...)
+	render(w, n.Segment.Value(source))
+	if n.SoftLineBreak() || n.HardLineBreak() {
+		writeNewLine(w)
 	}
-	render(w, text)
 	return ast.WalkContinue, nil
 }
 
@@ -205,12 +288,13 @@ func (r *Renderer) link(w util.BufWriter, _ []byte, node ast.Node, entering bool
 	return ast.WalkContinue, nil
 }
 
-func (r *Renderer) blockquote(w util.BufWriter, _ []byte, _ ast.Node, entering bool) (
+func (r *Renderer) blockquote(w util.BufWriter, _ []byte, actualNode ast.Node, entering bool) (
 	ast.WalkStatus, error,
 ) {
 	if entering {
-		writeNewLine(w)
-		writeRowBytes(w, []byte{GreaterThanChar.Byte()})
+		writeBlockSeparationNewLines(w, actualNode)
+		writeRowBytes(w, []byte{GreaterThanChar.Byte()}) // Write '>'
+		// Do NOT write a newline after '>'. Content (paragraph) will flow immediately.
 	}
 	return ast.WalkContinue, nil
 }
@@ -242,8 +326,17 @@ func (r *Renderer) doubleSpace(_ util.BufWriter, _ []byte, _ ast.Node, _ bool) (
 	return ast.WalkContinue, nil
 }
 
-func (r *Renderer) document(_ util.BufWriter, _ []byte, _ ast.Node, _ bool) (
+func (r *Renderer) document(w util.BufWriter, _ []byte, node ast.Node, entering bool) (
 	ast.WalkStatus, error,
 ) {
+	if entering {
+		return ast.WalkContinue, nil
+	}
+
+	// Add a final newline for multi-block documents.
+	if node.ChildCount() > 1 {
+		writeNewLine(w)
+	}
+
 	return ast.WalkContinue, nil
 }

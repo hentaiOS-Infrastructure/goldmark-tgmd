@@ -21,6 +21,14 @@ func (sc SpecialChar) Byte() byte {
 	return byte(sc)
 }
 
+func (sc SpecialChar) Bytes(num int) []byte {
+	bytes := make([]byte, num)
+	for i := 0; i < num; i++ {
+		bytes[i] = byte(sc) // Correctly assign the character to the slice elements
+	}
+	return bytes
+}
+
 // Escaped return SpecialChar as escaped byte char.
 func (sc SpecialChar) Escaped() []byte {
 	return append([]byte{SlashChar.Byte()}, sc.Byte())
@@ -73,8 +81,8 @@ const (
 
 // define Telegram Markdown formatting tags.
 var (
-	BoldTg          SpecialTag = []SpecialChar{AsteriskChar, AsteriskChar, AsteriskChar}
-	StrikethroughTg SpecialTag = []SpecialChar{TildeChar, TildeChar, TildeChar}
+	BoldTg          SpecialTag = []SpecialChar{AsteriskChar}
+	StrikethroughTg SpecialTag = []SpecialChar{TildeChar}
 	UnderlineTg     SpecialTag = []SpecialChar{UnderscoreChar, UnderscoreChar}
 	HiddenTg        SpecialTag = []SpecialChar{PipeChar, PipeChar}
 	ItalicsTg       SpecialTag = []SpecialChar{UnderscoreChar}
@@ -103,4 +111,5 @@ var escape = map[byte][]byte{
 	TildeChar.Byte():        TildeChar.Escaped(),
 	PipeChar.Byte():         PipeChar.Escaped(),
 	BackqouteChar.Byte():    BackqouteChar.Escaped(),
+	SlashChar.Byte():        SlashChar.Escaped(),
 }
