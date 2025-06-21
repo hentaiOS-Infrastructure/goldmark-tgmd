@@ -2,6 +2,7 @@ package tgmd
 
 import (
 	"bytes"
+	"io"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -19,34 +20,39 @@ func Convert(source []byte, opts ...Option) ([]byte, error) {
 	if err := md.Convert(source, &buf); err != nil {
 		return nil, err
 	}
+	return buf.Bytes(), nil
+}
 
-	cfg := *Config
-	for _, opt := range opts {
-		opt(&cfg)
+type quoteRenderer struct {
+	renderer.Renderer
+	cfg *config
+}
+
+func (r *quoteRenderer) Render(w io.Writer, source []byte, n ast.Node) error {
+	var buf bytes.Buffer
+	if err := r.Renderer.Render(&buf, source, n); err != nil {
+		return err
 	}
 
-	if !cfg.Quote.Enable {
-		return buf.Bytes(), nil
+	if !r.cfg.Quote.Enable {
+		_, err := w.Write(buf.Bytes())
+		return err
 	}
 
 	contentToProcess := buf.Bytes()
-	// If goldmark rendered nothing, but the source is not empty,
-	// it's likely whitespace. Use the source directly.
 	if buf.Len() == 0 && len(source) > 0 {
 		contentToProcess = source
 	}
 
-	// Trim trailing newlines, but preserve whitespace content
+	// This is the logic from QuoteDocument
 	processedBuf := bytes.TrimRight(contentToProcess, "\n")
-
-	// If the result is effectively empty, return nothing.
 	if len(processedBuf) == 0 {
-		return []byte{}, nil
+		_, err := w.Write([]byte{})
+		return err
 	}
 
-	// Post-processing for QuoteDocument
 	var result bytes.Buffer
-	if cfg.Quote.Expandable {
+	if r.cfg.Quote.Expandable {
 		result.Write([]byte{'*', '*'})
 	}
 
@@ -59,11 +65,12 @@ func Convert(source []byte, opts ...Option) ([]byte, error) {
 		}
 	}
 
-	if cfg.Quote.Expandable {
+	if r.cfg.Quote.Expandable {
 		result.Write([]byte{'|', '|'})
 	}
 
-	return result.Bytes(), nil
+	_, err := w.Write(result.Bytes())
+	return err
 }
 
 // NewRenderer returns a new renderer.Renderer that renders Telegram Markdown.
@@ -72,11 +79,19 @@ func NewRenderer(opts ...Option) renderer.Renderer {
 	for _, opt := range opts {
 		opt(&cfg)
 	}
-	return renderer.NewRenderer(
+	r := renderer.NewRenderer(
 		renderer.WithNodeRenderers(
 			util.Prioritized(newTgmdNodeRenderer(&cfg), 1000),
 		),
 	)
+
+	if cfg.Quote.Enable {
+		return &quoteRenderer{
+			Renderer: r,
+			cfg:      &cfg,
+		}
+	}
+	return r
 }
 
 // TGMD returns a new Goldmark instance with the Telegram Markdown extension.

@@ -60,12 +60,14 @@ func main() {
 	md := goldmark.New(
 		goldmark.WithRenderer(
 			tgmd.NewRenderer(
+				tgmd.WithQuote(tgmd.QuoteConfig{Enable: true, Expandable: false}),
 				tgmd.WithHeading1(tgmd.Element{Style: tgmd.ItalicsTg}),
 			),
 		),
 		goldmark.WithExtensions(
 			tgmd.Strikethroughs,
 			tgmd.Hidden,
+			tgmd.DoubleSpace,
 		),
 	)
 	var buf bytes.Buffer
