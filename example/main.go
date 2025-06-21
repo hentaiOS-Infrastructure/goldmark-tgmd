@@ -19,7 +19,7 @@ func main() {
 	// --- Standard Conversion ---
 	fmt.Println("--- Standard Conversion ---")
 	standardOutput, err := tgmd.Convert(content,
-		tgmd.WithQuote(tgmd.QuoteConfig{Enable: false, Expandable: false}),
+		tgmd.WithQuote(tgmd.QuoteConfig{Enable: false}),
 		tgmd.WithPrimaryListBullet('◦'),
 		tgmd.WithHeading1(tgmd.Element{
 			Style:   tgmd.BoldTg,
@@ -36,7 +36,7 @@ func main() {
 	// --- Document Quoted Conversion ---
 	fmt.Println("\n--- Document Quoted Conversion ---")
 	quotedOutput, err := tgmd.Convert(content,
-		tgmd.WithQuote(tgmd.QuoteConfig{Enable: true, Expandable: false}),
+		tgmd.WithQuote(tgmd.QuoteConfig{Enable: true}),
 	)
 	if err != nil {
 		fmt.Println("Quoted conversion failed:", err)
@@ -47,7 +47,7 @@ func main() {
 	// --- Expandable Document Quoted Conversion ---
 	fmt.Println("\n--- Expandable Document Quoted Conversion ---")
 	expandableOutput, err := tgmd.Convert(content,
-		tgmd.WithQuote(tgmd.QuoteConfig{Enable: true, Expandable: true}),
+		tgmd.WithQuote(tgmd.QuoteConfig{Enable: true, ExpandableAfterLines: 1}), // Force expandable
 	)
 	if err != nil {
 		fmt.Println("Expandable quoted conversion failed:", err)
@@ -55,12 +55,23 @@ func main() {
 	}
 	fmt.Println(string(expandableOutput))
 
+	// --- Auto-Expandable Document Quoted Conversion ---
+	fmt.Println("\n--- Auto-Expandable Document Quoted Conversion ---")
+	autoExpandableOutput, err := tgmd.Convert(content,
+		tgmd.WithQuote(tgmd.QuoteConfig{Enable: true, ExpandableAfterLines: 20}), // Expand if > 20 lines
+	)
+	if err != nil {
+		fmt.Println("Auto-expandable conversion failed:", err)
+		return
+	}
+	fmt.Println(string(autoExpandableOutput))
+
 	// --- Advanced Usage with custom goldmark instance ---
 	fmt.Println("\n--- Advanced Usage ---")
 	md := goldmark.New(
 		goldmark.WithRenderer(
 			tgmd.NewRenderer(
-				tgmd.WithQuote(tgmd.QuoteConfig{Enable: true, Expandable: false}),
+				tgmd.WithQuote(tgmd.QuoteConfig{Enable: true, ExpandableAfterLines: 20}),
 				tgmd.WithHeading1(tgmd.Element{Style: tgmd.ItalicsTg}),
 			),
 		),
