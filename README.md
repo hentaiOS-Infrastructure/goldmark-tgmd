@@ -85,7 +85,7 @@ func main() {
     md := goldmark.New(
         goldmark.WithRenderer(
             tgmd.NewRenderer(
-                tgmd.WithQuote(tgmd.QuoteConfig{Enable: true, ExpandableAfterLines: 20}),
+                tgmd.WithQuote(tgmd.QuoteConfig{Enable: true, Expandable: true}),
                 tgmd.WithHeading1(tgmd.Element{Style: tgmd.ItalicsTg}),
             ),
         ),
@@ -117,12 +117,10 @@ Configuration is done via `Option` functions passed to `tgmd.Convert` or `tgmd.N
 
 To format the entire document as a blockquote, use the `WithQuote` option. This is useful for creating self-contained, quoted messages.
 
-The feature is controlled by two fields in `tgmd.QuoteConfig`:
+The feature is controlled by two flags in `tgmd.QuoteConfig`:
 
 - `Enable`: A `bool` that turns the document quoting feature on or off.
-- `ExpandableAfterLines`: An `int` that defines a line-count threshold. If the quote has more lines than this number, it will be made expandable. A value of `0` (the default) disables this feature.
-
-This unique implementation correctly follows the Telegram API's behavior for expandable quotes. Rather than wrapping the entire quote, the expandable marker (`**`) is injected *at the exact line* where the content becomes hidden, and the closing marker (`||`) is appended at the very end.
+- `Expandable`: A `bool` that makes the quote expandable (collapsible) in Telegram.
 
 #### Example Usage
 
@@ -147,21 +145,20 @@ func main() {
 
    // 2. Blockquote Conversion
    quotedOutput, _ := tgmd.Convert(content,
-       tgmd.WithQuote(tgmd.QuoteConfig{Enable: true}),
+       tgmd.WithQuote(tgmd.QuoteConfig{Enable: true, Expandable: false}),
    )
    fmt.Println("\n--- Quoted ---\n", string(quotedOutput))
 
-   // 3. Auto-Expandable Blockquote Conversion
-   // The quote will become expandable if the content has more than 20 lines.
+   // 3. Expandable Blockquote Conversion
    expandableOutput, _ := tgmd.Convert(content,
-       tgmd.WithQuote(tgmd.QuoteConfig{Enable: true, ExpandableAfterLines: 20}),
+       tgmd.WithQuote(tgmd.QuoteConfig{Enable: true, Expandable: true}),
    )
    fmt.Println("\n--- Expandable Quoted ---\n", string(expandableOutput))
 }
 ```
 
-- When `Enable` is `true` and `ExpandableAfterLines` is `0`, the entire output is converted into a standard blockquote.
-- When `Enable` is `true` and `ExpandableAfterLines` is greater than `0`, the output will be converted into an expandable blockquote if the line count exceeds the threshold.
+- When `Enable` is `true` and `Expandable` is `false`, the entire output is converted into a standard blockquote.
+- When both `Enable` and `Expandable` are `true`, the output is converted into an expandable blockquote, wrapped with `**` and `||`.
 
 You can try the full [example](./example/main.go) to see this in action.
 

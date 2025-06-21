@@ -52,14 +52,13 @@ func (r *quoteRenderer) Render(w io.Writer, source []byte, n ast.Node) error {
 	}
 
 	lines := bytes.Split(processedBuf, []byte{'\n'})
-	isExpandable := r.cfg.Quote.ExpandableAfterLines > 0 && len(lines) > r.cfg.Quote.ExpandableAfterLines
 
 	var result bytes.Buffer
+	if r.cfg.Quote.Expandable {
+		result.Write([]byte{'*', '*'})
+	}
+
 	for i, line := range lines {
-		// Inject the expandable marker at the exact line threshold.
-		if isExpandable && i == r.cfg.Quote.ExpandableAfterLines {
-			result.Write([]byte{'*', '*'})
-		}
 		result.WriteByte(GreaterThanChar.Byte())
 		result.Write(line)
 		if i < len(lines)-1 {
@@ -67,7 +66,7 @@ func (r *quoteRenderer) Render(w io.Writer, source []byte, n ast.Node) error {
 		}
 	}
 
-	if isExpandable {
+	if r.cfg.Quote.Expandable {
 		result.Write([]byte{'|', '|'})
 	}
 

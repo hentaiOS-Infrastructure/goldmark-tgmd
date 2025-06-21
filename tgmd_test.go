@@ -96,54 +96,32 @@ func TestTGMDConvert_VariousCases(t *testing.T) {
 			name:  "Document as Quote",
 			input: "Line 1\nLine 2",
 			setupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true})
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: false})
 			},
 			cleanupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false})
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, Expandable: false})
 			},
 			expected: ">Line 1\n>Line 2",
 		},
 		{
-			name:  "Document as Expandable Quote (Forced)",
+			name:  "Document as Expandable Quote",
 			input: "Line 1\nLine 2",
 			setupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, ExpandableAfterLines: 1})
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: true})
 			},
 			cleanupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, ExpandableAfterLines: 0})
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, Expandable: false})
 			},
-			expected: ">Line 1\n**>Line 2||",
-		},
-		{
-			name:  "Document as Expandable Quote (Threshold Met)",
-			input: "Line 1\nLine 2\nLine 3",
-			setupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, ExpandableAfterLines: 2})
-			},
-			cleanupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, ExpandableAfterLines: 0})
-			},
-			expected: ">Line 1\n>Line 2\n**>Line 3||",
-		},
-		{
-			name:  "Document as Non-Expandable Quote (Threshold Not Met)",
-			input: "Line 1\nLine 2",
-			setupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, ExpandableAfterLines: 2})
-			},
-			cleanupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, ExpandableAfterLines: 0})
-			},
-			expected: ">Line 1\n>Line 2",
+			expected: "**>Line 1\n>Line 2||",
 		},
 		{
 			name:  "Complex Document as Quote",
 			input: "# Title\n\n- Item 1\n- Item 2\n\nSome `code` here.",
 			setupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true})
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: false})
 			},
 			cleanupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false})
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, Expandable: false})
 			},
 			expected: ">*Title*\n>\n>  • Item 1\n>  • Item 2\n>\n>Some `code` here\\.",
 		},
@@ -151,21 +129,21 @@ func TestTGMDConvert_VariousCases(t *testing.T) {
 			name:  "Complex Document as Expandable Quote",
 			input: "# Title\n\n- Item 1\n- Item 2\n\nSome `code` here.",
 			setupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, ExpandableAfterLines: 4})
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: true})
 			},
 			cleanupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, ExpandableAfterLines: 0})
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, Expandable: false})
 			},
-			expected: ">*Title*\n>\n>  • Item 1\n>  • Item 2\n**>\n>Some `code` here\\.||",
+			expected: "**>*Title*\n>\n>  • Item 1\n>  • Item 2\n>\n>Some `code` here\\.||",
 		},
 		{
 			name:  "Document with Existing Blockquote as Quote",
 			input: "Line 1\n\n> Nested Quote",
 			setupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true})
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: false})
 			},
 			cleanupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false})
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, Expandable: false})
 			},
 			expected: ">Line 1\n>\n>>Nested Quote",
 		},
@@ -173,10 +151,10 @@ func TestTGMDConvert_VariousCases(t *testing.T) {
 			name:  "Empty Input with Quoting Enabled",
 			input: "",
 			setupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, ExpandableAfterLines: 1})
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: true})
 			},
 			cleanupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, ExpandableAfterLines: 0})
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, Expandable: false})
 			},
 			expected: "",
 		},
@@ -184,21 +162,21 @@ func TestTGMDConvert_VariousCases(t *testing.T) {
 			name:  "Whitespace Input with Quoting Enabled",
 			input: "   \n\t\n ",
 			setupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, ExpandableAfterLines: 1})
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: true})
 			},
 			cleanupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, ExpandableAfterLines: 0})
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, Expandable: false})
 			},
-			expected: ">   \n**>\t\n> ||",
+			expected: "**>   \n>\t\n> ||",
 		},
 		{
 			name:  "Quote Enabled but Expandable Disabled with Marker",
 			input: "Hello\n**",
 			setupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true})
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: true, Expandable: false})
 			},
 			cleanupConfig: func() {
-				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false})
+				tgmd.Config.SetQuoteOptions(tgmd.QuoteConfig{Enable: false, Expandable: false})
 			},
 			expected: ">Hello\n>\\*\\*",
 		},

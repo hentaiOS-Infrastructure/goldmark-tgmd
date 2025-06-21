@@ -35,8 +35,8 @@ var Config = &config{
 		TriangleSymbol.Rune(),
 	},
 	Quote: QuoteConfig{
-		Enable:               false,
-		ExpandableAfterLines: 0,
+		Enable:     false,
+		Expandable: false,
 	},
 }
 
@@ -51,8 +51,8 @@ type config struct {
 type QuoteConfig struct {
 	// Enable determines whether the document quoting feature is enabled.
 	Enable bool
-	// ExpandableAfterLines, if > 0, makes the quote expandable if it has more than this many lines.
-	ExpandableAfterLines int
+	// Expandable determines whether the expandable quote feature is enabled.
+	Expandable bool
 }
 
 // UpdateHeading1 change default H1 style.
